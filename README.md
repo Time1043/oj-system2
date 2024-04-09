@@ -184,7 +184,12 @@
 
   ```
   node -v  # 18 or 16
-  npm -v  # 9.5.1
+  npm -v  # 9.5.1  
+  
+  
+  # if need 
+  npm cache clean --force
+  npm install -g npm@9.5.1
   
   ```
 
@@ -549,6 +554,7 @@
     state: () => ({
       loginUser: {
         userName: "未登录",
+        role: "notLogin",
       },
     }),
     actions: {
@@ -576,6 +582,107 @@
 - 权限管理
 
   以一套通用的机制，去定义哪个页面需要哪些权限 (路由中定义权限)
+  
+  ```
+  cp src/views/HomeView.vue src/views/AdminView.vue
+  cp src/views/HomeView.vue src/views/NoAuthView.vue
+  
+  ```
+  
+- 思路：
+  
+  在路由配置文件中，定义某个路由的访问权限
+  
+  在全局页面组件中，绑定一个全局路由监听。每次访问页面时，根据用户要访问页面的路由信息，先判断用户是否对应的访问权限
+  
+  如果没有，拦截或跳转401鉴权或登录页
+  
+- 代码实现
+  
+  router\routes.ts (`canAdmin`)
+  
+  ```typescript
+  import { RouteRecordRaw } from "vue-router";
+  import HomeView from "@/views/HomeView.vue";
+  import AdminView from "@/views/AdminView.vue";
+  import NoAuthView from "@/views/NoAuthView.vue";
+  
+  export const routes: Array<RouteRecordRaw> = [
+    {
+      path: "/",
+      name: "浏览题目",
+      component: HomeView,
+    },
+    {
+      path: "/admin",
+      name: "管理员页面",
+      component: AdminView,
+      meta: {
+        access: "canAdmin",
+      },
+    },
+    {
+      path: "/noAuth",
+      name: "无权限",
+      component: NoAuthView,
+    },
+    {
+      path: "/about",
+      name: "关于我的",
+      // route level code-splitting
+      // this generates a separate chunk (about.[hash].js) for this route
+      // which is lazy-loaded when the route is visited.
+      component: () =>
+        import(/* webpackChunkName: "about" */ "../views/AboutView.vue"),
+    },
+  ];
+  
+  ```
+  
+  App.vue
+  
+  ```vue
+  <template>
+    <div id="app">
+      <BasicLayout />
+    </div>
+  </template>
+  
+  <style>
+  #app {
+  }
+  </style>
+  
+  <script setup lang="ts">
+  import BasicLayout from "@/layouts/BasicLayout.vue";
+  import { useRouter } from "vue-router";
+  import { useStore } from "vuex";
+  
+  const router = useRouter();
+  const store = useStore();
+  
+  router.beforeEach((to, from, next) => {
+    // 能够监听到路由信息 且有权限信息
+    if (to.meta?.access === "canAdmin") {
+      // 该页面需要管理员权限
+      if (store.state.user.loginUser?.role !== "admin") {
+        // 当前用户不是管理员
+        next("/noAuth");
+        return;
+      }
+    }
+    next();
+  });
+  </script>
+  ```
+  
+- 改进
+  
+  可以单独定义一个文件
+  
+  控制路由的显隐
+  
+  前端代码自动生成
 
 
 
@@ -584,6 +691,100 @@
 
 
 
+
+## 后端初始化
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## 本地虚拟linux
+
+- 问题：安装docker
+
+  win：wsl、docker
+
+  win：vmware、[ubuntu1804 desk](https://releases.ubuntu.com/bionic/)
+
+- vmware新建虚拟机：……
+
+- 初始化配置
+
+  屏幕分辨率：win -> resolution -> 200% 
+
+  中文语言：win -> language -> install -> install / remove languages -> chinese(simplified) -> 语言列表汉语拖到最上 -> apply system-wide
+
+  中文输入法：win -> language -> 输入源 + 
+
+  日期时间：win -> time -> shanghai
+
+  屏幕常亮：setting -> 
+
+- 两种安装软件的方式：应用商城、包管理器 (ctl alt t)
+
+  ```bash
+  sudo apt install docker.io
+  docker -v
+  sudo docker run hello-world
+  
+  
+  # 远程开发 ip
+  sudo apt install net-tools
+  ifconfig  # 192.168.64.135
+  # 远程开发 ssh
+  sudo apt-get install openssh-server
+  ps -ef | grep ssh
+  
+  # java
+  sudo apt update
+  sudo apt install openjdk-8-jdk
+  java -verison
+  # maven
+  sudo apt install maven
+  mvn -v
+  
+  ```
+
+  
+
+- linux环境编写代码
+
+  远程开发：在win上操作linux
+
+- 方式1：远程部署 (文件同步)
+
+  ssh连接：win idea：tools -> deployment -> configuration -> + -> sftp -> ubuntu1804(输入服务器名称) -> ssh config
+
+  文件同步：
+
+  win操作linux运行项目：terminal
+
+  ```bash
+  cd code2/code-java
+  mvn spring-boot:run
+  mvn package
+  java -jar /home/yingzhu/code2/code-java/target/user-center-java-0.0.1-SNAPSHOT.jar --spring.profiles.active=prod
+  
+  
+  ```
+
+  
+
+- 方式2：纯远程开发
 
 
 
@@ -610,4 +811,28 @@
 
 
 ## 简历写法
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
