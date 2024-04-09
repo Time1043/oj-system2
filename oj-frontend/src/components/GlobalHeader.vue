@@ -52,7 +52,7 @@ const doMenuClick = (key: string) => {
 const store = useStore();
 // todo 修改状态信息
 setTimeout(() => {
-  store.dispatch("user/getLoginUser", { userName: "admin" });
+  store.dispatch("user/getLoginUser", { userName: "admin", role: "admin" });
 }, 3000);
 </script>
 
