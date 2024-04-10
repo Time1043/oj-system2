@@ -809,6 +809,7 @@
 
   ```
   git clone http://gitlab.code-nav.cn/root/springboot-init.git
+  git rm --cached springboot-init
   mv springboot-init/ java-oj-backend/
   
   ```
