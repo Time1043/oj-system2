@@ -180,7 +180,7 @@
 
 
 
-## 前端初始化模板
+## 前端初始化 (模板)
 
 - 确认环境 (切换和管理node版本工具 nvm)
 
@@ -252,7 +252,7 @@
 
 - 引入组件
 
-  [arco design vue组件库](https://arco.design/vue/docs/start)
+  [arco design vue组件库](https://arco.design/vue/docs/start) (字节)
 
   ```
   npm install --save-dev @arco-design/web-vue
@@ -322,10 +322,14 @@
 
   BasicLayout.vue (上中下布局)
 
+  纵压缩：顶部横条、底部横条没有始终固定 (底部footer布局优化)
+  
+  横压缩：未登录不要换行 (优化content globalHeader样式)
+  
   ```vue
   <template>
     <div id="basicLayout">
-      <a-layout style="height: 400px">
+      <a-layout style="min-height: 100vh">
         <a-layout-header class="header">
           <GlobalHeader />
         </a-layout-header>
@@ -350,12 +354,13 @@
   #basicLayout .content {
     background: linear-gradient(to right, #bbb, #fff);
     margin-bottom: 16px;
+    padding: 20px;
   }
   
   #basicLayout .footer {
     background: #efefef;
     padding: 16px;
-    position: absolute;
+    position: sticky;
     bottom: 0;
     left: 0;
     right: 0;
@@ -387,7 +392,7 @@
   
   ```vue
   <template>
-    <a-row id="gloablHeader" style="margin-bottom: 16px" align="center">
+    <a-row id="globalHeader" align="center" :wrap="false">
       <a-col flex="auto">
         <a-menu
           mode="horizontal"
@@ -404,7 +409,7 @@
               <div class="title">时oj</div>
             </div>
           </a-menu-item>
-          <a-menu-item v-for="item in routes" :key="item.path">
+          <a-menu-item v-for="item in visibleRoutes" :key="item.path">
             {{ item.name }}
           </a-menu-item>
         </a-menu>
@@ -419,12 +424,15 @@
   <script setup lang="ts">
   import { routes } from "@/router/routes";
   import { useRoute, useRouter } from "vue-router";
-  import { ref } from "vue";
+  import { computed, ref } from "vue";
   import { useStore } from "vuex";
+  import checkAccess from "@/access/checkAccess";
+  import AccessEnum from "@/access/accessEnum";
   
   const router = useRouter();
   const route = useRoute();
-  
+  const store = useStore(); // 状态信息管理
+  const loginUse = store.state.user.loginUser; // 当前用户
   const selectedKeys = ref([route.path]); // 默认选中首页
   
   // 路由跳转后 更新选中的菜单项
@@ -436,12 +444,27 @@
     router.push({ path: key });
   };
   
-  // 状态信息管理
-  const store = useStore();
   // todo 修改状态信息
   setTimeout(() => {
-    store.dispatch("user/getLoginUser", { userName: "admin" });
+    store.dispatch("user/getLoginUser", {
+      userName: "yingzhu",
+      userRole: AccessEnum.ADMIN,
+    });
   }, 3000);
+  
+  // 控制路由的显隐 展示在菜单的路由数组
+  const visibleRoutes = computed(() => {
+    return routes.filter((item, index) => {
+      if (item.meta?.hideInMenu) {
+        return false;
+      }
+      // todo 根据权限过滤菜单
+      if (!checkAccess(loginUse, item?.meta?.access as string)) {
+        return false;
+      }
+      return true;
+    });
+  });
   </script>
   
   <style scoped>
@@ -476,17 +499,41 @@
   export default router;
   ```
   
-  router\routes.ts
+  router\routes.ts (通用路由菜单)
   
   ```typescript
   import { RouteRecordRaw } from "vue-router";
   import HomeView from "@/views/HomeView.vue";
+  import AdminView from "@/views/AdminView.vue";
+  import NoAuthView from "@/views/NoAuthView.vue";
+  import ACCESS_ENUM from "@/access/accessEnum";
   
   export const routes: Array<RouteRecordRaw> = [
     {
       path: "/",
       name: "浏览题目",
       component: HomeView,
+    },
+    {
+      path: "/hide",
+      name: "隐藏页面",
+      component: HomeView,
+      meta: {
+        hideInMenu: true,
+      },
+    },
+    {
+      path: "/admin",
+      name: "管理员页面",
+      component: AdminView,
+      meta: {
+        access: ACCESS_ENUM.ADMIN,
+      },
+    },
+    {
+      path: "/noAuth",
+      name: "无权限",
+      component: NoAuthView,
     },
     {
       path: "/about",
@@ -550,19 +597,20 @@
   ```typescript
   // initial state
   import { StoreOptions } from "vuex";
+  import AccessEnum from "@/access/accessEnum";
   
   export default {
     namespaced: true,
     state: () => ({
       loginUser: {
         userName: "未登录",
-        role: "notLogin",
+        userRole: AccessEnum.NOT_LOGIN,
       },
     }),
     actions: {
       getLoginUser({ commit, state }, payload) {
-        // todo 从远程请求获取登录信息
-        commit("updateUser", { userName: "yingzhu" });
+        // todo 从远程请求获取登录信息 不要写死
+        commit("updateUser", payload);
       },
     },
     mutations: {
@@ -603,45 +651,7 @@
   
   router\routes.ts (`canAdmin`)
   
-  ```typescript
-  import { RouteRecordRaw } from "vue-router";
-  import HomeView from "@/views/HomeView.vue";
-  import AdminView from "@/views/AdminView.vue";
-  import NoAuthView from "@/views/NoAuthView.vue";
-  
-  export const routes: Array<RouteRecordRaw> = [
-    {
-      path: "/",
-      name: "浏览题目",
-      component: HomeView,
-    },
-    {
-      path: "/admin",
-      name: "管理员页面",
-      component: AdminView,
-      meta: {
-        access: "canAdmin",
-      },
-    },
-    {
-      path: "/noAuth",
-      name: "无权限",
-      component: NoAuthView,
-    },
-    {
-      path: "/about",
-      name: "关于我的",
-      // route level code-splitting
-      // this generates a separate chunk (about.[hash].js) for this route
-      // which is lazy-loaded when the route is visited.
-      component: () =>
-        import(/* webpackChunkName: "about" */ "../views/AboutView.vue"),
-    },
-  ];
-  
-  ```
-  
-  App.vue
+  App.vue (全局的路由拦截 预留一个可以全局初始化的逻辑)
   
   ```vue
   <template>
@@ -659,6 +669,19 @@
   import BasicLayout from "@/layouts/BasicLayout.vue";
   import { useRouter } from "vue-router";
   import { useStore } from "vuex";
+  import { onMounted } from "vue";
+  
+  /**
+   * 全局初始化函数，全局单次调用的代码
+   */
+  const doInit = () => {
+    // todo 初始化函数
+    console.log("hello shiOJ welcome");
+  };
+  
+  onMounted(() => {
+    doInit();
+  });
   
   const router = useRouter();
   const store = useStore();
@@ -676,15 +699,129 @@
     next();
   });
   </script>
+  
   ```
   
-- 改进
+- 根据配置控制菜单显隐
   
-  可以单独定义一个文件
+  实现：
   
-  控制路由的显隐
+  给路由新增一个标志位 用于判断路由是否显隐 `meta hideInMenu` (routes.ts)
   
-  前端代码自动生成
+  在view中v-for、v-if条件渲染 (不规范 不推荐 性能浪费)
+  
+  在js中先过滤 `visibleRoutes` (GlobalHeader.vue)
+  
+- 根据权限隐藏菜单
+  
+  类似 (后面实现)
+  
+  
+
+
+
+- 全局权限管理
+
+  ```bash
+  cd /d/code2/java-code/oj-system2/oj-frontend/
+  mkdir src/access
+  touch src/access/accessEnum.ts
+  touch src/access/checkAccess.ts
+  
+  ```
+
+  定义权限
+
+  定义一个公用的权限检验方法 (菜单组件要用 权限拦截要用 抽离成公共方法)
+
+  修改GlobalHeader.vue动态菜单组件，根据权限来过滤菜单 (计算属性 没解决)
+
+  access\accessEnum.ts
+
+  ```typescript
+  /**
+   * 权限定义
+   */
+  const ACCESS_ENUM = {
+    NOT_LOGIN: "notLogin",
+    USER: "user",
+    ADMIN: "admin",
+  };
+  
+  export default ACCESS_ENUM;
+  ```
+
+  access\checkAccess.ts
+
+  ```typescript
+  import ACCESS_ENUM from "@/access/accessEnum";
+  
+  /**
+   * 检查权限
+   * @param loginUser 当前登录用户
+   * @param needAccess 需要有的权限 (默认值是未登录)
+   * @returns boolean 是否有权限
+   */
+  const checkAccess = (loginUser: any, needAccess = ACCESS_ENUM.NOT_LOGIN) => {
+    // 获取当前用户的权限 如果没有则未登录
+    const loginUserAccess = loginUser?.userRole ?? ACCESS_ENUM.NOT_LOGIN;
+  
+    // 未登录用户可以访问的页面 放行
+    if (needAccess === ACCESS_ENUM.NOT_LOGIN) {
+      return true;
+    }
+  
+    // 需要用户登录才能访问的页面
+    if (needAccess === ACCESS_ENUM.USER) {
+      // 如果用户未登录 则无权限
+      if (loginUserAccess === ACCESS_ENUM.NOT_LOGIN) {
+        return false;
+      }
+    }
+  
+    // 需要管理员权限才能访问的页面
+    if (needAccess === ACCESS_ENUM.ADMIN) {
+      // 如果用户不是管理员 则无权限
+      if (loginUserAccess !== ACCESS_ENUM.ADMIN) {
+        return false;
+      }
+    }
+    return true; // 有权限 放行
+  };
+  
+  export default checkAccess;
+  
+  ```
+
+  
+
+
+
+- 前端代码自动生成 (通用的代码生成插件)
+
+
+
+
+
+## 后端初始化 (模板)
+
+- 拉取
+
+  ```
+  git clone http://gitlab.code-nav.cn/root/springboot-init.git
+  mv springboot-init/ java-oj-backend/
+  
+  ```
+
+  
+
+
+
+
+
+
+
+## 前后端联调
 
 
 
@@ -694,7 +831,21 @@
 
 
 
-## 后端初始化
+## 后端接口开发
+
+
+
+
+
+
+
+## 前端页面开发
+
+
+
+
+
+## 判题机模块架构
 
 
 
@@ -704,17 +855,7 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-## 本地虚拟linux
+## 前置：本地虚拟linux
 
 - 问题：安装docker
 
@@ -789,6 +930,22 @@
 - 方式2：纯远程开发
 
 
+
+
+
+
+
+
+
+
+
+## 代码沙箱原生实现
+
+
+
+
+
+## 代码沙箱docker实现
 
 
 
