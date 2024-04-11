@@ -13,7 +13,7 @@
         >
           <div class="title-bar">
             <img class="logo" src="../assets/egg-log.png" />
-            <div class="title">时oj</div>
+            <div class="title">epsilonOJ</div>
           </div>
         </a-menu-item>
         <a-menu-item v-for="item in visibleRoutes" :key="item.path">

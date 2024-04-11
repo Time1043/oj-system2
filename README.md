@@ -12,7 +12,7 @@
 
 - 参考
 
-  [鱼皮笔记](https://bcdh.yuque.com/staff-wpxfif/resource/rls4he4gffa1g1ob)
+  [鱼皮笔记](https://bcdh.yuque.com/staff-wpxfif/resource/rls4he4gffa1g1ob)、[球友参考](https://www.yuque.com/eureka-ntwlf/gfkp8k/bltta3zn3i2hgl6o?singleDoc#)
 
 
 
@@ -1146,14 +1146,77 @@
   
   UserLayout.vue
   
+  ```vue
+  <template>
+    <div id="userLayout">
+      <a-layout style="min-height: 100vh">
+        <a-layout-header class="header">
+          <a-space>
+            <img src="../assets/egg-log.png" class="logo" />
+            <div style="margin-left: 16px; font-size: 24px; font-weight: bold">
+              时oj
+            </div>
+          </a-space>
+        </a-layout-header>
+  
+        <a-layout-content class="content">
+          <router-view />
+        </a-layout-content>
+  
+        <a-layout-footer class="footer">
+          <a href="http://github.com/Time1043" target="_blank">Time1043 周坚深</a>
+        </a-layout-footer>
+      </a-layout>
+    </div>
+  </template>
+  
+  <style scoped>
+  #userLayout {
+    text-align: center;
+    background: url("https://gw.alipayobjects.com/zos/rmsportal/FfdJeJRQWjEeGTpqgBKj.png");
+  }
+  
+  #userLayout .logo {
+    height: 48px;
+  }
+  
+  #userLayout .header {
+    margin-top: 16px;
+  }
+  
+  #userLayout .content {
+    margin-bottom: 16px;
+    padding: 20px;
+  }
+  
+  #userLayout .footer {
+    padding: 16px;
+    position: sticky;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    text-align: center;
+  }
+  </style>
+  
+  <script></script>
+  
+  ```
+  
   UserLoginView.vue (先写死 后改成向后端发请求) [form](https://arco.design/vue/component/form) [全局message](https://arco.design/vue/component/message)
   
   ```vue
   <template>
     <div id="userLoginView">
-      <h1>用户登录页面</h1>
+      <h2 style="margin-bottom: 16px">welcome to user login</h2>
   
-      <a-form :model="form" :style="{ width: '600px' }" @submit="handleSubmit">
+      <a-form
+        style="max-width: 480px; margin: 0 auto"
+        label-align="left"
+        auto-label-width
+        :model="form"
+        @submit="handleSubmit"
+      >
         <a-form-item field="userAccount" label="账号">
           <a-input v-model="form.userAccount" placeholder="请输入账号..." />
         </a-form-item>
@@ -1164,7 +1227,9 @@
           />
         </a-form-item>
         <a-form-item>
-          <a-button html-type="submit">提交</a-button>
+          <a-button type="primary" style="width: 120px" html-type="submit"
+            >登录
+          </a-button>
         </a-form-item>
       </a-form>
     </div>
@@ -1174,6 +1239,8 @@
   import { reactive } from "vue";
   import { UserControllerService } from "../../../generated";
   import message from "@arco-design/web-vue/es/message";
+  import { useRouter } from "vue-router";
+  import { useStore } from "vuex";
   
   /**
    * 表单数据
@@ -1183,6 +1250,9 @@
     userPassword: "",
   });
   
+  const router = useRouter();
+  const store = useStore();
+  
   /**
    * 提交表单事件
    * @param data
@@ -1190,7 +1260,9 @@
   const handleSubmit = async (data: any) => {
     const res = await UserControllerService.userLoginUsingPost(form);
     if (res.code === 0) {
-      alert("登录成功：" + JSON.stringify(res.data));
+      // 登录成功跳转到首页 (有重定向的url)
+      await store.dispatch("user/getLoginUser");
+      router.push({ path: "/", replace: true });
     } else {
       message.error("登录失败：" + res.message);
     }
@@ -1202,8 +1274,6 @@
   登录成功后要修改页面的状态  store\user.ts getLoginUser
   
   
-
-
 
 
 
@@ -1244,13 +1314,274 @@
 
 
 
-
-
-
-
-
-
 ## 后端接口开发
+
+- 主业务流程开发
+
+  系统功能梳理：用户模块、题目模块、判题模块
+
+  库表设计：用户表、题目表题目提交表
+
+  后端接口开发：
+
+  前端页面开发：
+
+  
+
+
+
+- 系统功能梳理
+
+  用户模块：注册、登录 ✔
+
+  题目模块：
+
+  - admin：创建题目、删除题目、修改题目 
+  - 用户：搜索题目、在线做题/题目详情页 
+
+  判题模块：
+
+  - 提交判题：结果是否正确
+  - 错误处理：内存溢出、安全性、超时
+  - 自主实现：**代码沙箱**
+  - 开放接口：提供一个独立的服务
+
+
+
+
+
+### 库表设计 (题目模块)
+
+- 库表设计
+
+  **动静分离**
+
+
+
+- 用户表 (轮子有)
+
+- 题目表 (看别人的系统 GPT)
+
+  基础字段：
+
+  - 标题 `title`、内容 `content`、分类标签 `tag`(栈 队列 链表 简单 中等 困难 - JSON数组字符串)、题目答案 `answer`(管理员采纳用户)、
+
+  - 提交数 `submitNum`、通过数 `acceptedNum` (通过两个比率动态计算出难度标签 便于统计分析)
+
+  判题字段：`judgeConfig` (json对象)
+
+  - 时间限制、内存限制 
+
+    ```json
+    {
+        "timeLimit": 1000,
+        "memoryLimit": 1000,
+        "stackLimit": 1000
+    }
+    ```
+
+  判题字段：`judgeCase` (json数组)
+
+  - 输入用例、输出用例 (一一对应)
+
+    ```json
+    [
+        {
+            "input": "1 2",
+            "output": "3 4"
+        },
+        {
+            "input": "5 6",
+            "output": "7 8"
+        }
+    ]
+    ```
+
+- 题目提交表
+
+  提交用户id `userId`、题目id `questionId`、语言 `language`、用户的代码 `code`、判题状态 `status`(0待判题 1判题中 2成功 3失败)
+
+  判题信息 `judgeInfo`(json对象 判题过程中得到的一些信息 比如程序的失败原因 程序执行消耗的时间空间)
+
+  ```json
+  {
+      "message": "程序执行信息",
+      "time": 1000,  // 单位为ms
+      "memory": 1000,  // 单位为kb
+  }
+  ```
+
+  判题信息枚举值 message：
+
+  Accepted 成功、Wrong Answer 答案错误、Compile Error 编译错误、Memory Limit Exceeded 内存溢出、
+
+  Time Limit Exceeded 超时、Presentation Error 展示错误、Output Limit Exceeded 输出溢出、Waiting 等待中、
+
+  Dangerous Operation 危险操作、Runtime Error 运行错误(用户程序的问题)、System Error 系统错误(做系统人的问题)
+
+- 建表语句
+
+  ```sql
+  -- 题目表
+  create table if not exists question
+  (
+      id          bigint auto_increment comment 'id' primary key,
+      title       varchar(512)                       null comment '标题',
+      content     text                               null comment '内容',
+      tags        varchar(1024)                      null comment '标签列表（json 数组）',
+      answer      text                               null comment '题解',
+      submitNum   int      default 0                 not null comment '提交数',
+      acceptedNum int      default 0                 not null comment '通过数',
+      judgeCase   text                               null comment '判题用例（json 数组）',
+      judgeConfig text                               null comment '判题配置（json 对象）',
+      thumbNum    int      default 0                 not null comment '点赞数',
+      favourNum   int      default 0                 not null comment '收藏数',
+      userId      bigint                             not null comment '创建用户 id',
+      createTime  datetime default CURRENT_TIMESTAMP not null comment '创建时间',
+      updateTime  datetime default CURRENT_TIMESTAMP not null on update CURRENT_TIMESTAMP comment '更新时间',
+      isDelete    tinyint  default 0                 not null comment '是否删除',
+      index idx_userId (userId)
+  ) comment '题目' collate = utf8mb4_unicode_ci;
+  
+  -- 题目提交表
+  create table if not exists question_submit
+  (
+      id         bigint auto_increment comment 'id' primary key,
+      language   varchar(128)                       not null comment '编程语言',
+      code       text                               not null comment '用户代码',
+      judgeInfo  text                               null comment '判题信息（json 对象）',
+      status     int      default 0                 not null comment '状态：0-等待判题，1-正在判题，2-判题完成，3-判题失败',
+      questionId bigint                             not null comment '题目 id',
+      userId     bigint                             not null comment '创建用户 id',
+      createTime datetime default CURRENT_TIMESTAMP not null comment '创建时间',
+      updateTime datetime default CURRENT_TIMESTAMP not null on update CURRENT_TIMESTAMP comment '更新时间',
+      isDelete   tinyint  default 0                 not null comment '是否删除',
+      index idx_questionId (questionId),
+      index idx_userId (userId)
+  ) comment '题目提交';
+  ```
+  
+  
+
+
+
+- 字段设计
+
+- 存JSON的前提
+
+  不需要根据某个字段去倒查这条数据
+
+  字段含义相关，属于同一类的值
+
+  字段存储空间占用不能太大
+
+  (优势：便于扩展 只需要改变对象内部的字段 而不用修改数据库表)
+
+- 数据库的文件存储
+
+  若文件较小，可以直接存到数据库
+
+  若文件>512k，则单独存放，数据库只保存文件url (否则数据库查询很慢 类似存储用户头像)
+  
+- 数据库索引 when which
+
+  单个索引、联合索引
+
+  从实际的查询语句、字段枚举值的区分度、字段的类型考虑(where 条件指定的字段)
+
+  ```
+  如：where userld=1 and questionld =2
+  可以选择根据 userld 和 questionld 分别建立索引(需要分别根据这两个字段单独查询); 也可以选择给这两个字段建立联合索引(所查询的字段是绑定在一起的)
+  
+  原则上能不用索引就不用索引; 能用单个索引就别用联合/多个索引; 不要给没区分度的字段加索引(比如性别，就男/女)。
+  因为索引也是要占用空间的。
+  
+  ```
+
+  
+
+
+
+### 后端接口 (题目模块)
+
+- 后端开发流程
+
+  根据功能设计库表
+
+  自动生成 对数据库的增删改查 (mapper service) -> 代码生成器 [sql-father](http://sqlfather.yupi.icu/)
+
+  编写 controller 层，实现基本的增删改查和权限校验 -> 代码生成器 
+
+  根据业务订制开发新的功能，编写新的代码
+
+  
+
+- 对数据库的增删改查 (mapper service)
+
+  MyBatisX 生成：MyBatisX-Generator -> module path -> annotation (MyBatis-Plus3) options (comment lombok actualColumn Model) template (mybatis-plus3)
+
+  移动生成的代码：要重构否则包名报错
+
+
+
+- 编写 controller 层 (基于模板)
+
+  单表(静)、关联表(动)
+
+  题目类比帖子、题目提交类比帖子点赞
+
+  ```
+  cd  /d/code2/java-code/oj-system2/java-oj-backend/
+  cp src/main/java/com/time1043/javaoj/controller/PostController.java src/main/java/com/time1043/javaoj/controller/QuestionController.java
+  cp src/main/java/com/time1043/javaoj/controller/PostThumbController.java src/main/java/com/time1043/javaoj/controller/QuestionSubmitController.java
+  
+  mkdir src/main/java/com/time1043/javaoj/model/dto/question
+  cp src/main/java/com/time1043/javaoj/model/dto/post/PostAddRequest.java src/main/java/com/time1043/javaoj/model/dto/question/QuestionAddRequest.java
+  cp src/main/java/com/time1043/javaoj/model/dto/post/PostEditRequest.java src/main/java/com/time1043/javaoj/model/dto/question/QuestionEditRequest.java
+  cp src/main/java/com/time1043/javaoj/model/dto/post/PostQueryRequest.java src/main/java/com/time1043/javaoj/model/dto/question/QuestionQueryRequest.java
+  cp src/main/java/com/time1043/javaoj/model/dto/post/PostUpdateRequest.java src/main/java/com/time1043/javaoj/model/dto/question/QuestionUpdateRequest.java
+  
+  touch src/main/java/com/time1043/javaoj/model/dto/question/JudgeCase.java
+  touch src/main/java/com/time1043/javaoj/model/dto/question/JudgeConfig.java
+  
+  mkdir src/main/java/com/time1043/javaoj/model/dto/questionsubmit
+  touch src/main/java/com/time1043/javaoj/model/dto/question/JudgeInfo.java
+  
+  touch src/main/java/com/time1043/javaoj/model/vo/QuestionVO.java  # 返回给前端的 (节约网络传输大小 过滤字段或脱敏 保证安全性)
+  
+  ```
+
+  全局替换 (指定大小写)
+
+  `post` -> `question`、`Post` -> `Question`、`帖子` -> `题目`、`QuestionMapping` -> `PostMapping`
+
+  `post_thumb` -> `question_submit`、`postThumb` -> `questionSubmit`、`PostThumb` -> `QuestionSubmit`、`帖子点赞` -> `题目提交`
+
+
+
+- 根据实体类编写封装的对象 (DTO VO 枚举值字段 - 用于接受前端请求 或业务间传递消息)
+
+  复制文件、替换名字；字段编写(实体类复制 删除不要的)
+
+  updateRequest 和 editRequest 的区别：前者是给管理员更新用的，可以指定更多字段；后者是给普通用户试用的，只能指定部分字段。
+
+
+
+- 根据json创建对象
+
+  为了更方便地处理 json 字段中的某个字段，需要给对应的json 字段编写独立的类，比如 judgeConfig、judgeInfo、judgeCase
+
+  什么情况下要加业务前缀？什么情况下不加？加业务前缀的好处，防止多个表都有类似的类，产生冲突；不加的前提，因为可能这个类是多个业务之间共享的能够复用的。
+
+  D:\code2\java-code\oj-system2\java-oj-backend\src\main\java\com\time1043\javaoj\model\dto\question\JudgeCase.java
+
+  D:\code2\java-code\oj-system2\java-oj-backend\src\main\java\com\time1043\javaoj\model\dto\question\JudgeConfig.java
+
+  D:\code2\java-code\oj-system2\java-oj-backend\src\main\java\com\time1043\javaoj\model\dto\questionsubmit\JudgeInfo.java
+
+
+
+
 
 
 

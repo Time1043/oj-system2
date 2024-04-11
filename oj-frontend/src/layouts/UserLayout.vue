@@ -5,7 +5,7 @@
         <a-space>
           <img src="../assets/egg-log.png" class="logo" />
           <div style="margin-left: 16px; font-size: 24px; font-weight: bold">
-            时oj
+            epsilonOJ
           </div>
         </a-space>
       </a-layout-header>
