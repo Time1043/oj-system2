@@ -23,7 +23,7 @@
     </a-col>
 
     <a-col flex="100px">
-      <div>{{ store.state.user.loginUser?.userName ?? "未登录" }}</div>
+      <div>{{ loginUse?.userName ?? "userName not found" }}</div>
     </a-col>
   </a-row>
 </template>
@@ -52,17 +52,17 @@ const doMenuClick = (key: string) => {
 };
 
 // todo 修改状态信息
-setTimeout(() => {
-  alert("2");
-  store.dispatch("user/getLoginUser", {
-    userName: "yingzhu",
-    userRole: AccessEnum.ADMIN,
-  });
-}, 3000);
+// setTimeout(() => {
+//   alert("2" + loginUse.userName);
+//   store.dispatch("user/getLoginUser", {
+//     userName: "yingzhu",
+//     userRole: AccessEnum.ADMIN,
+//   });
+// }, 3000);
 
 // 控制路由的显隐 展示在菜单的路由数组
 const visibleRoutes = computed(() => {
-  alert("1");
+  alert("1" + loginUse.userName);
   return routes.filter((item, index) => {
     if (item.meta?.hideInMenu) {
       return false;

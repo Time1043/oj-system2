@@ -416,7 +416,7 @@
       </a-col>
   
       <a-col flex="100px">
-        <div>{{ store.state.user.loginUser?.userName ?? "未登录" }}</div>
+        <div>{{ loginUse?.userName ?? "未登录" }}</div>
       </a-col>
     </a-row>
   </template>
@@ -445,12 +445,12 @@
   };
   
   // todo 修改状态信息
-  setTimeout(() => {
-    store.dispatch("user/getLoginUser", {
-      userName: "yingzhu",
-      userRole: AccessEnum.ADMIN,
-    });
-  }, 3000);
+  // setTimeout(() => {
+  //   store.dispatch("user/getLoginUser", {
+  //     userName: "yingzhu",
+  //     userRole: AccessEnum.ADMIN,
+  //   });
+  // }, 3000);
   
   // 控制路由的显隐 展示在菜单的路由数组
   const visibleRoutes = computed(() => {
@@ -507,8 +507,31 @@
   import AdminView from "@/views/AdminView.vue";
   import NoAuthView from "@/views/NoAuthView.vue";
   import ACCESS_ENUM from "@/access/accessEnum";
+  import UserLayout from "@/layouts/UserLayout.vue";
+  import UserLoginView from "@/views/user/UserLoginView.vue";
+  import UserRegisterView from "@/views/user/UserRegisterView.vue";
   
   export const routes: Array<RouteRecordRaw> = [
+    {
+      path: "/user",
+      name: "用户",
+      component: UserLayout,
+      children: [
+        {
+          path: "/user/login",
+          name: "用户登录",
+          component: UserLoginView,
+        },
+        {
+          path: "/user/register",
+          name: "用户注册",
+          component: UserRegisterView,
+        },
+      ],
+      meta: {
+        hideInMenu: true,
+      },
+    },
     {
       path: "/",
       name: "浏览题目",
@@ -818,7 +841,7 @@
   cp -r springboot-init/ oj-system2/java-oj-backend/
   
   mysql -uroot -p123456
-  create database my_db;
+  create database java_oj;
   
   ```
   
@@ -937,6 +960,22 @@
 - 需要改url方案一：[OpenAPI object](https://github.com/ferdikoomen/openapi-typescript-codegen/wiki/OpenAPI-object)
   
   generated\core\OpenAPI.ts (全局参数修改对象)
+  
+  ```typescript
+  
+  export const OpenAPI: OpenAPIConfig = {
+      BASE: 'http://localhost:8121',
+      VERSION: '1.0',
+      WITH_CREDENTIALS: true,
+      CREDENTIALS: 'include',
+      TOKEN: undefined,
+      USERNAME: undefined,
+      PASSWORD: undefined,
+      HEADERS: undefined,
+      ENCODE_PATH: undefined,
+  };
+  
+  ```
   
 - 需要改url方案二：[axios Interceptors 全局请求响应拦截器](https://axios-http.com/docs/config_defaults)
   
@@ -1103,74 +1142,9 @@
   
   routes.ts (注册路由)
   
-  ```typescript
-  import { RouteRecordRaw } from "vue-router";
-  import HomeView from "@/views/HomeView.vue";
-  import AdminView from "@/views/AdminView.vue";
-  import NoAuthView from "@/views/NoAuthView.vue";
-  import ACCESS_ENUM from "@/access/accessEnum";
-  import UserLayout from "@/layouts/UserLayout.vue";
-  import UserLoginView from "@/views/user/UserLoginView.vue";
-  import UserRegisterView from "@/views/user/UserRegisterView.vue";
+- 新建布局和页面
   
-  export const routes: Array<RouteRecordRaw> = [
-    {
-      path: "/user",
-      name: "用户",
-      component: UserLayout,
-      children: [
-        {
-          path: "/user/login",
-          name: "用户登录",
-          component: UserLoginView,
-        },
-        {
-          path: "/user/register",
-          name: "用户注册",
-          component: UserRegisterView,
-        },
-      ],
-    },
-    {
-      path: "/",
-      name: "浏览题目",
-      component: HomeView,
-    },
-    {
-      path: "/hide",
-      name: "隐藏页面",
-      component: HomeView,
-      meta: {
-        hideInMenu: true,
-      },
-    },
-    {
-      path: "/admin",
-      name: "管理员页面",
-      component: AdminView,
-      meta: {
-        access: ACCESS_ENUM.ADMIN,
-      },
-    },
-    {
-      path: "/noAuth",
-      name: "无权限",
-      component: NoAuthView,
-    },
-    {
-      path: "/about",
-      name: "关于我的",
-      // route level code-splitting
-      // this generates a separate chunk (about.[hash].js) for this route
-      // which is lazy-loaded when the route is visited.
-      component: () =>
-        import(/* webpackChunkName: "about" */ "../views/AboutView.vue"),
-    },
-  ];
-  
-  ```
-  
-  新建布局和页面
+  UserLayout.vue
   
   UserLoginView.vue (先写死 后改成向后端发请求) [form](https://arco.design/vue/component/form) [全局message](https://arco.design/vue/component/message)
   
@@ -1198,7 +1172,7 @@
   
   <script setup lang="ts">
   import { reactive } from "vue";
-  import { UserControllerService, UserLoginRequest } from "../../../generated";
+  import { UserControllerService } from "../../../generated";
   import message from "@arco-design/web-vue/es/message";
   
   /**
@@ -1207,24 +1181,66 @@
   const form = reactive({
     userAccount: "",
     userPassword: "",
-  } as UserLoginRequest);
+  });
   
   /**
    * 提交表单事件
    * @param data
    */
-  const handleSubmit = async () => {
+  const handleSubmit = async (data: any) => {
     const res = await UserControllerService.userLoginUsingPost(form);
     if (res.code === 0) {
-      alert("登出成功: " + JSON.stringify(res.data));
+      alert("登录成功：" + JSON.stringify(res.data));
     } else {
-      message.error("登录失败: " + res.message);
+      message.error("登录失败：" + res.message);
     }
   };
   </script>
+  
+  ```
+  
+  登录成功后要修改页面的状态  store\user.ts getLoginUser
+  
+  
+
+
+
+
+
+- 遇到报错
+
+  ```
+  D:\systemEnvironment\nodejs\npm.cmd run serve
+  
+  > oj-frontend@0.1.0 serve
+  > vue-cli-service serve
+  
+   ERROR  Error loading vue.config.js:
+   ERROR  TypeError: defineConfig is not a function
+  TypeError: defineConfig is not a function
+      at Object.<anonymous> (D:\code2\java-code\oj-system2\oj-frontend\vue.config.js:2:18)
+      at Module._compile (node:internal/modules/cjs/loader:1356:14)
+      at Module._extensions..js (node:internal/modules/cjs/loader:1414:10)
+      at Module.load (node:internal/modules/cjs/loader:1197:32)
+      at Module._load (node:internal/modules/cjs/loader:1013:12)
+      at Module.require (node:internal/modules/cjs/loader:1225:19)
+      at require (node:internal/modules/helpers:177:18)
+      at Service.loadUserOptions (D:\code2\java-code\oj-system2\oj-frontend\node_modules\@vue\cli-service\lib\Service.js:316:22)
+      at Service.init (D:\code2\java-code\oj-system2\oj-frontend\node_modules\@vue\cli-service\lib\Service.js:75:30)
+      at Service.run (D:\code2\java-code\oj-system2\oj-frontend\node_modules\@vue\cli-service\lib\Service.js:221:10)
+  
+  Process finished with exit code 1
+  
   ```
 
+  解决
 
+  ```bash
+  vue upgrade
+  
+  ```
+
+  
 
 
 
