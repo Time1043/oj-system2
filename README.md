@@ -254,7 +254,7 @@
 
   [arco design vue组件库](https://arco.design/vue/docs/start) (字节)
 
-  ```
+  ```bash
   npm install --save-dev @arco-design/web-vue
   
   ```
@@ -799,30 +799,432 @@
 
 - 前端代码自动生成 (通用的代码生成插件)
 
+  后续
 
 
 
 
-## 后端初始化 (模板)
+
+## 后端初始化 (轮子)
+
+### 后端项目初始化
 
 - 拉取
 
-  ```
+  ```bash
+  cd /d/code2/java-code
   git clone http://gitlab.code-nav.cn/root/springboot-init.git
-  git rm --cached springboot-init
-  mv springboot-init/ java-oj-backend/
+  cd springboot-init/ && rm -rf .git && cd ..
+  cp -r springboot-init/ oj-system2/java-oj-backend/
+  
+  mysql -uroot -p123456
+  create database my_db;
+  
+  ```
+  
+  全局替换：`springboot-init` -> `java-oj-backend`
+  
+  全局替换：`springbootinit` -> `javaoj` (包名替换：`com.time1043.javaoj`)
+  
+  application.yml
+  
+  ```yml
+      
+      url: jdbc:mysql://localhost:3306/java_oj
+  
+    port: 8121
+  
+  ```
+  
+  sql\create_table.sql (创建数据库数据表)
+  
+  ```sql
+  
+  create database if not exists java_oj;
+  
+  use java_oj;
+  
+  ```
+  
+  MainApplication 启动
+  
+  http://localhost:8121/api/doc.html (测接口 userRegister userLogin)
+  
+  [接口文档地址](http://localhost:8121/api/v2/api-docs) (后面自动生成要用)
+  
+  
+
+
+
+### 后端项目结构
+
+- 初始化项目结构
+
+  `README.md`
+
+  `sql\create_table.sql` 定义了数据库的初始化建库建表语句
+
+  `sql\post_es_mapping.json` 帖子表再ES中的建表语句
+
+  `Dockerfile` 用于构建Docker镜像
+
+  src
+
+  `MainApplication` 项目启动入口
+
+  `model` 数据模型、实体类、包装类、枚举值
+
+  `controller` 接收请求
+
+  `service` 业务层，用于编写业务逻辑
+
+  `manager` 服务层，定义一些公用的服务、对接第三方API等
+
+  `mapper` mybatis的数据访问层，用于操作数据库
+
+  src
+
+  `annotation` 定义注解 (权限校验)
+
+  `aop` 用于全局权限校验、全局日志记录
+
+  `common` 万用的类 (如通用响应类)
+
+  `config` 用于接收application.yml中的参数，初始化一些客户端的配置类 (如对象存储客户端)
+
+  `constant` 定义常量
+
+  `esdao` 类似与mybatis的mapper，用于操作ES
+
+  `exception` 异常处理相关
+
+  `job` 任务相关 (定时任务 单次任务)
+
+  `utils` 工具类，各种各样的公用方法
+
+  `wxmp` 公众号相关的包
+
+  `test` 单元测试
+
+  
+
+
+
+### 前后端联调 (跑通)
+
+- 前后端是怎么连起来的？接口、请求
+
+  前端发送请求调用后端接口
+
+- 实现：[请求工具类 axios github](https://github.com/axios/axios)、[axios Getting Started](https://axios-http.com/docs/intro)
+
+  ```bash
+  cd /d/code2/java-code/oj-system2/oj-frontend
+  npm install axios
   
   ```
 
+  传统调用：每个请求单独编写代码 (至少得写请求路径)
+
+  自动生成：[openapi-typescript-codegen](https://github.com/ferdikoomen/openapi-typescript-codegen) (示例)
+
+  ```bash
+  npm install openapi-typescript-codegen --save-dev
+  openapi --input http://localhost:8121/api/v2/api-docs --output ./generated --client axios
+  
+  ```
+
+- 需要改url方案一：[OpenAPI object](https://github.com/ferdikoomen/openapi-typescript-codegen/wiki/OpenAPI-object)
+  
+  generated\core\OpenAPI.ts (全局参数修改对象)
+  
+- 需要改url方案二：[axios Interceptors 全局请求响应拦截器](https://axios-http.com/docs/config_defaults)
+  
+  ```bash
+  mkdir src/plugins
+  touch src/plugins/axios.ts
+  
+  ```
+  
+  plugins\axios.ts (粘贴demo)
+  
+  main.ts (引入axios.ts)
+  
+  ```typescript
+  import "@/plugins/axios";
+  ```
+  
   
 
 
 
+- 对接接口：用户登录
+
+  store\user.ts
+
+  ```typescript
+  // initial state
+  import { StoreOptions } from "vuex";
+  import AccessEnum from "@/access/accessEnum";
+  import { UserControllerService } from "../../generated";
+  
+  export default {
+    namespaced: true,
+    state: () => ({
+      loginUser: {
+        userName: "未登录",
+      },
+    }),
+    actions: {
+      async getLoginUser({ commit, state }, payload) {
+        // 从远程请求获取用户信息
+        const res = await UserControllerService.getLoginUserUsingGet();
+        if (res.code === 0) {
+          commit("updateUser", res.data);
+        } else {
+          commit("updateUser", {
+            ...state.loginUser,
+            userRole: AccessEnum.NOT_LOGIN,
+          });
+        }
+      },
+    },
+    mutations: {
+      updateUser(state, payload) {
+        state.loginUser = payload;
+      },
+    },
+  } as StoreOptions<any>;
+  ```
+  
+  遇到问题：http://localhost:8121/api/api/user/get/login
+  
+  
 
 
 
+- 用户登录功能打通
 
-## 前后端联调
+  自动登录：刚进入页面就触发登录
+
+  1. 从远程请求获取用户信息 (store\user.ts)
+
+  2. 触发getLoginUser函数：多种选择 (路由拦截、全局页面入口、全局通用布局、权限管理✔)
+
+  ```bash
+  touch src/access/index.ts
+  
+  ```
+
+  App.vue (移除权限管理部分)
+
+  access\index.ts (专注全局权限管理 只要不引入就不开启) (router直接从文件引入)
+
+  ```typescript
+  import router from "@/router";
+  import store from "@/store";
+  import ACCESS_ENUM from "@/access/accessEnum";
+  import checkAccess from "@/access/checkAccess";
+  
+  router.beforeEach(async (to, from, next) => {
+    console.log("登录用户信息：", store.state.user.loginUser);
+  
+    const loginUser = store.state.user.loginUser;
+    // loginUser不存在 或 userRole不存在(还未触发登录) 则自动登录
+    if (!loginUser || !loginUser.userRole) {
+      // await 等用户登录成功后再执行路由跳转
+      await store.dispatch("user/getLoginUser");
+    }
+  
+    // 要去页面的权限
+    const needAccess = (to.meta.access as string) ?? ACCESS_ENUM.NOT_LOGIN;
+    // 如果用户访问的页面需要登录 强制跳转登录页面
+    if (needAccess !== ACCESS_ENUM.NOT_LOGIN) {
+      // 如果没登陆 强制跳转登录页面
+      if (!loginUser || !loginUser.userRole) {
+        next(`/user/login?redirect=${to.fullPath}`);
+        return;
+      }
+      // 如果登陆了 则判断用户权限
+      if (!checkAccess(loginUser, needAccess)) {
+        next("/noAuth");
+        return;
+      }
+    }
+  
+    next();
+  });
+  
+  ```
+
+  main.ts (引入 执行)
+
+  ```typescript
+  import "@/access";
+  ```
+
+  http://localhost:8080/user/login?redirect=/admin
+
+  
+
+
+
+- 登录页面
+
+  不用复用导航栏 (支持多套布局)
+
+- 代码实现
+
+  ```bash
+  cp src/layouts/BasicLayout.vue src/layouts/UserLayout.vue  # 布局
+  mkdir src/views/user  # 页面
+  cp src/views/AboutView.vue src/views/user/UserLoginView.vue
+  cp src/views/AboutView.vue src/views/user/UserRegisterView.vue
+  
+  ```
+  
+  App.vue (区分布局)
+  
+  ```vue
+  <template>
+    <div id="app">
+      <template v-if="route.path.startsWith('/user')">
+        <router-view></router-view>
+      </template>
+  
+      <template v-else>
+        <BasicLayout />
+      </template>
+    </div>
+  </template>
+  
+  
+  ```
+  
+  routes.ts (注册路由)
+  
+  ```typescript
+  import { RouteRecordRaw } from "vue-router";
+  import HomeView from "@/views/HomeView.vue";
+  import AdminView from "@/views/AdminView.vue";
+  import NoAuthView from "@/views/NoAuthView.vue";
+  import ACCESS_ENUM from "@/access/accessEnum";
+  import UserLayout from "@/layouts/UserLayout.vue";
+  import UserLoginView from "@/views/user/UserLoginView.vue";
+  import UserRegisterView from "@/views/user/UserRegisterView.vue";
+  
+  export const routes: Array<RouteRecordRaw> = [
+    {
+      path: "/user",
+      name: "用户",
+      component: UserLayout,
+      children: [
+        {
+          path: "/user/login",
+          name: "用户登录",
+          component: UserLoginView,
+        },
+        {
+          path: "/user/register",
+          name: "用户注册",
+          component: UserRegisterView,
+        },
+      ],
+    },
+    {
+      path: "/",
+      name: "浏览题目",
+      component: HomeView,
+    },
+    {
+      path: "/hide",
+      name: "隐藏页面",
+      component: HomeView,
+      meta: {
+        hideInMenu: true,
+      },
+    },
+    {
+      path: "/admin",
+      name: "管理员页面",
+      component: AdminView,
+      meta: {
+        access: ACCESS_ENUM.ADMIN,
+      },
+    },
+    {
+      path: "/noAuth",
+      name: "无权限",
+      component: NoAuthView,
+    },
+    {
+      path: "/about",
+      name: "关于我的",
+      // route level code-splitting
+      // this generates a separate chunk (about.[hash].js) for this route
+      // which is lazy-loaded when the route is visited.
+      component: () =>
+        import(/* webpackChunkName: "about" */ "../views/AboutView.vue"),
+    },
+  ];
+  
+  ```
+  
+  新建布局和页面
+  
+  UserLoginView.vue (先写死 后改成向后端发请求) [form](https://arco.design/vue/component/form) [全局message](https://arco.design/vue/component/message)
+  
+  ```vue
+  <template>
+    <div id="userLoginView">
+      <h1>用户登录页面</h1>
+  
+      <a-form :model="form" :style="{ width: '600px' }" @submit="handleSubmit">
+        <a-form-item field="userAccount" label="账号">
+          <a-input v-model="form.userAccount" placeholder="请输入账号..." />
+        </a-form-item>
+        <a-form-item field="userPassword" tooltip="密码不少于8位" label="密码">
+          <a-input-password
+            v-model="form.userPassword"
+            placeholder="请输入密码..."
+          />
+        </a-form-item>
+        <a-form-item>
+          <a-button html-type="submit">提交</a-button>
+        </a-form-item>
+      </a-form>
+    </div>
+  </template>
+  
+  <script setup lang="ts">
+  import { reactive } from "vue";
+  import { UserControllerService, UserLoginRequest } from "../../../generated";
+  import message from "@arco-design/web-vue/es/message";
+  
+  /**
+   * 表单数据
+   */
+  const form = reactive({
+    userAccount: "",
+    userPassword: "",
+  } as UserLoginRequest);
+  
+  /**
+   * 提交表单事件
+   * @param data
+   */
+  const handleSubmit = async () => {
+    const res = await UserControllerService.userLoginUsingPost(form);
+    if (res.code === 0) {
+      alert("登出成功: " + JSON.stringify(res.data));
+    } else {
+      message.error("登录失败: " + res.message);
+    }
+  };
+  </script>
+  ```
+
+
 
 
 
